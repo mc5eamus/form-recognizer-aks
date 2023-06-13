@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: form-recognizer-studio
+  namespace: form-recognizer
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 5001
+  selector:
+    app: form-recognizer-studio
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: form-recognizer-studio
+  namespace: form-recognizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: form-recognizer-studio
+  template:
+    metadata:
+      labels:
+        app: form-recognizer-studio
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000      
+      containers:
+        - name: form-recognizer-studio
+          image: mcr.microsoft.com/azure-cognitive-services/form-recognizer/studio:3.0
+          env:
+            - name: "AZURECOGNITIVESERVICELAYOUTHOST"
+              value: "https://azure-cognitive-service-layout:5001"
+            - name: "ONPREM_LOCALFILE_BASEPATH"
+              value: "/onprem_folder"
+            - name: "STORAGE_DATABASE_CONNECTION_STRING"
+              value: "/onprem_db/Application.db"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5001
+          volumeMounts:
+            - name: folder-volume
+              mountPath: "/onprem_folder"
+            - name: db-volume
+              mountPath: "/onprem_db"
+          resources:
+            limits:
+              cpu: "300m"
+              memory: "512Mi"
+            requests:
+              cpu: "100m"
+              memory: "256Mi"               
+      volumes:
+        - name: folder-volume
+          persistentVolumeClaim:
+            claimName: studio-folder-claim
+        - name: db-volume
+          persistentVolumeClaim:
+            claimName: studio-db-claim
